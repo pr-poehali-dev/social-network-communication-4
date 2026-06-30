@@ -82,10 +82,22 @@ const INITIAL_NOTIFS: Notif[] = [
   { id: 5, icon: 'Users', color: '#CCFF00', text: 'Тебя пригласили в группу «Мем-лаборатория»', time: 'вчера', read: true },
 ];
 
+const CONTACT_SUGGESTIONS = [
+  { name: 'Луна Векторова', tag: '@vector_moon', color: '#FF3CAC' },
+  { name: 'Кирилл Пиксель', tag: '@pixel_kir', color: '#00F0FF' },
+  { name: 'Ная Сторм', tag: '@storm_naya', color: '#CCFF00' },
+  { name: 'Рей Квант', tag: '@rey_quantum', color: '#7B2FF7' },
+  { name: 'Зора Флэш', tag: '@zora_flash', color: '#FFD600' },
+];
+
+const GROUP_EMOJIS = ['🌙','🎨','🚀','🔥','✦','💠','🎭','🌈','⚡','🎲'];
+const GROUP_COLORS = ['#CCFF00','#FF3CAC','#00F0FF','#7B2FF7','#FFD600'];
+
 export default function Index() {
   const [active, setActive] = useState('Лента');
   const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
   const [groups, setGroups] = useState<Group[]>(INITIAL_GROUPS);
+  const [contacts, setContacts] = useState<typeof CONTACT_SUGGESTIONS>([]);
   const [notifs, setNotifs] = useState<Notif[]>(INITIAL_NOTIFS);
   const [activeChat, setActiveChat] = useState<Message | null>(null);
   const [chatInput, setChatInput] = useState('');
@@ -99,6 +111,17 @@ export default function Index() {
   const [memeText, setMemeText] = useState('');
   const [search, setSearch] = useState('');
   const [photoOpen, setPhotoOpen] = useState<Photo | null>(null);
+
+  // Создание группы
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [groupDesc, setGroupDesc] = useState('');
+  const [groupEmoji, setGroupEmoji] = useState('🌙');
+  const [groupColor, setGroupColor] = useState('#CCFF00');
+
+  // Добавление контакта
+  const [addContactOpen, setAddContactOpen] = useState(false);
+  const [contactSearch, setContactSearch] = useState('');
 
   const [playing, setPlaying] = useState(false);
   const [drawnCard, setDrawnCard] = useState<typeof CARD_POOL[number] | null>(null);
@@ -186,6 +209,24 @@ export default function Index() {
     ));
     const g = groups.find((gr) => gr.id === id);
     if (g) toast(g.joined ? `Ты вышел из «${g.name}»` : `Ты вступил в «${g.name}» ${g.emoji}`);
+  };
+
+  const createGroup = () => {
+    if (!groupName.trim()) { toast.error('Введи название группы'); return; }
+    const newGroup: Group = {
+      id: Date.now(), name: groupName, members: 1,
+      color: groupColor, emoji: groupEmoji, joined: true,
+    };
+    setGroups((prev) => [newGroup, ...prev]);
+    toast.success(`Группа «${groupName}» создана ${groupEmoji}`);
+    setGroupName(''); setGroupDesc(''); setGroupEmoji('🌙'); setGroupColor('#CCFF00');
+    setCreateGroupOpen(false);
+  };
+
+  const addContact = (c: typeof CONTACT_SUGGESTIONS[number]) => {
+    if (contacts.find((x) => x.tag === c.tag)) { toast(`${c.name} уже в контактах`); return; }
+    setContacts((prev) => [...prev, c]);
+    toast.success(`${c.name} добавлен в контакты!`);
   };
 
   const readAllNotifs = () => setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
@@ -346,7 +387,25 @@ export default function Index() {
               <div className="mb-6 flex items-center gap-3">
                 <h2 className="font-display text-3xl font-extrabold">Сообщения</h2>
                 <span className="h-px flex-1 bg-gradient-to-r from-neon-pink to-transparent" />
+                <button onClick={() => setAddContactOpen(true)}
+                  className="flex items-center gap-2 rounded-full border-2 border-neon-pink px-5 py-2 font-display text-sm font-bold text-neon-pink transition-colors hover:bg-neon-pink hover:text-white">
+                  <Icon name="UserPlus" size={16} /> Добавить
+                </button>
               </div>
+              {contacts.length > 0 && !activeChat && (
+                <div className="mb-5">
+                  <p className="mb-3 font-display text-sm font-bold text-muted-foreground uppercase tracking-wider">Мои контакты</p>
+                  <div className="flex flex-wrap gap-3">
+                    {contacts.map((c) => (
+                      <div key={c.tag} className="flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-2 backdrop-blur">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full font-display text-xs font-bold"
+                          style={{ background: `${c.color}22`, color: c.color }}>{c.name[0]}</div>
+                        <span className="text-sm font-medium">{c.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {!activeChat ? (
                 <div className="flex flex-col gap-3">
                   {MESSAGES.map((m) => (
@@ -411,6 +470,10 @@ export default function Index() {
               <div className="mb-6 flex items-center gap-3">
                 <h2 className="font-display text-3xl font-extrabold">Группы</h2>
                 <span className="h-px flex-1 bg-gradient-to-r from-neon-lime to-transparent" />
+                <button onClick={() => setCreateGroupOpen(true)}
+                  className="flex items-center gap-2 rounded-full bg-neon-lime px-5 py-2.5 font-display text-sm font-bold text-background transition-transform hover:scale-105">
+                  <Icon name="Plus" size={16} /> Создать группу
+                </button>
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {groups.map((g) => (
@@ -629,6 +692,91 @@ export default function Index() {
               Запостить мем
             </button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* CREATE GROUP DIALOG */}
+      <Dialog open={createGroupOpen} onOpenChange={setCreateGroupOpen}>
+        <DialogContent className="border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="font-display">Создать группу ✦</DialogTitle>
+            <DialogDescription>Собери своё сообщество по интересам.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Название группы</label>
+              <Input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="Например: Неон Арт" className="bg-background" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Описание (необязательно)</label>
+              <Textarea value={groupDesc} onChange={(e) => setGroupDesc(e.target.value)} placeholder="О чём ваше сообщество?" className="bg-background min-h-20" />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-muted-foreground">Иконка</label>
+              <div className="flex flex-wrap gap-2">
+                {GROUP_EMOJIS.map((e) => (
+                  <button key={e} onClick={() => setGroupEmoji(e)}
+                    className={`flex h-10 w-10 items-center justify-center rounded-xl text-xl transition-all hover:scale-110 ${groupEmoji === e ? 'ring-2 ring-neon-lime scale-110' : 'bg-muted'}`}>
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-muted-foreground">Цвет</label>
+              <div className="flex gap-2">
+                {GROUP_COLORS.map((c) => (
+                  <button key={c} onClick={() => setGroupColor(c)}
+                    className={`h-8 w-8 rounded-full transition-all hover:scale-110 ${groupColor === c ? 'ring-2 ring-white ring-offset-2 ring-offset-card scale-110' : ''}`}
+                    style={{ background: c }} />
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <button onClick={createGroup} className="rounded-full bg-neon-lime px-6 py-2.5 font-display font-bold text-background transition-transform hover:scale-105">
+              Создать {groupEmoji}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ADD CONTACT DIALOG */}
+      <Dialog open={addContactOpen} onOpenChange={(v) => { setAddContactOpen(v); setContactSearch(''); }}>
+        <DialogContent className="border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="font-display">Добавить контакт</DialogTitle>
+            <DialogDescription>Найди человека по имени или тегу.</DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-3 rounded-full border border-border bg-background px-4 py-2.5 focus-within:border-neon-cyan">
+            <Icon name="Search" size={18} className="text-muted-foreground shrink-0" />
+            <input value={contactSearch} onChange={(e) => setContactSearch(e.target.value)}
+              placeholder="Имя или @тег..." autoFocus
+              className="w-full bg-transparent placeholder:text-muted-foreground focus:outline-none text-sm" />
+          </div>
+          <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
+            {CONTACT_SUGGESTIONS.filter((c) =>
+              !contactSearch || c.name.toLowerCase().includes(contactSearch.toLowerCase()) || c.tag.includes(contactSearch)
+            ).map((c) => {
+              const added = contacts.some((x) => x.tag === c.tag);
+              return (
+                <div key={c.tag} className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-display font-bold"
+                    style={{ background: `${c.color}22`, color: c.color }}>{c.name[0]}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">{c.tag}</p>
+                  </div>
+                  <button onClick={() => addContact(c)} disabled={added}
+                    className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-all hover:scale-105 disabled:opacity-60 ${
+                      added ? 'bg-muted text-muted-foreground' : 'bg-neon-lime text-background'
+                    }`}>
+                    {added ? '✓ Добавлен' : 'Добавить'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </DialogContent>
       </Dialog>
 
